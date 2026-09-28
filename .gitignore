@@ -1,0 +1,9 @@
+node_modules/
+dist/
+data/
+.env
+logs/*
+*.tsbuildinfo
+artifacts/
+reference/project.json
+reference/assets.json
