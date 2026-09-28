@@ -324,6 +324,17 @@ test('single role regeneration updates only its slot and preserves the confirmed
  assert.equal(received.model,'configured-image-model');assert.equal(received.prompt,'表情提示词');assert.deepEqual(received.settings.references,['/uploads/head.png']);assert.equal(received.settings.ratio,'3:4');assert.equal(received.settings.workflow,false);
 });
 
+test('role regeneration submits the edited prompt, chosen references, and supported image settings',async()=>{
+ let received;const {id,service}=assetFixture(async input=>{received=input;return {outputUrl:'/uploads/regenerated.png'};});
+ command(service,id,{action:'edit',targetId:'role',assetSlot:'expressionUrl',assetSettings:{ratio:'3:4',resolution:'4K',quality:'高',transparent:true,model:'configured-image-model'},assetReferences:['/uploads/new-reference.png']});
+ const {taskId}=generateRole(service,id,{prompt:'按新提示词重绘',references:['/uploads/confirmed-reference.png']});
+ const after=await settledAsset(service,id,taskId);
+ assert.equal(after.tasks.find(task=>task.id===taskId).status,'completed');
+ assert.equal(received.model,'configured-image-model');assert.equal(received.prompt,'按新提示词重绘');
+ assert.deepEqual(received.settings.references,['/uploads/confirmed-reference.png']);
+ assert.equal(received.settings.resolution,'4K');assert.equal(received.settings.quality,'高');assert.equal(received.settings.transparent,true);
+});
+
 test('asset tasks reject duplicate submissions and stage changes while allowing edits',async()=>{
  let complete;const {id,service}=assetFixture(()=>new Promise(resolve=>{complete=resolve;}));const {taskId}=generateRole(service,id);
  assert.throws(()=>generateRole(service,id),/正在生成/);assert.throws(()=>command(service,id,{action:'continue'}),/等待角色图片任务/);
