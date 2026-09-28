@@ -554,6 +554,44 @@ textarea { resize: vertical; }
 .chat-expand { position: absolute; z-index: 8; top: 70px; right: 15px; background: #252525; }
 .canvas-tools { position: absolute; z-index: 8; left: 17px; bottom: 18px; display: flex; gap: 4px; padding: 5px; border: 1px solid var(--line); border-radius: 9px; background: rgba(31,31,31,.92); }
 .canvas-tools .primary { color: var(--accent); }
+
+.draw-image-backdrop { position: fixed; z-index: 60; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(0,0,0,.76); backdrop-filter: blur(5px); }
+.draw-image-modal { display: flex; flex-direction: column; width: min(1160px,94vw); height: min(880px,92vh); overflow: hidden; border: 1px solid #383838; border-radius: 12px; background: #202020; color: #eee; box-shadow: 0 24px 90px #000b; }
+.draw-image-header,.draw-image-footer { display: flex; align-items: center; justify-content: space-between; min-height: 48px; padding: 0 17px; border-bottom: 1px solid #333; }
+.draw-image-header button { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #303030; }
+.draw-image-workspace { display: grid; grid-template-columns: minmax(0,1fr) 300px; flex: 1; min-height: 0; }
+.draw-image-board { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 12px; }
+.draw-image-toolbar { display: flex; align-items: center; gap: 7px; height: 38px; padding: 0 8px; border-radius: 6px 6px 0 0; background: #171717; }
+.draw-image-toolbar button,.draw-ratios button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 6px 8px; color: #ccc; border: 1px solid transparent; border-radius: 5px; font-size: 12px; }
+.draw-image-toolbar button.active,.draw-ratios button.active { color: #fff; border-color: #dd2cb3; background: #30202c; }
+.draw-image-toolbar button:disabled { opacity: .35; }
+.draw-image-toolbar input[type=range] { width: 90px; accent-color: #df32b7; }
+.draw-image-color { position: relative; width: 22px; height: 22px; margin-left: auto; overflow: hidden; border-radius: 50%; }
+.draw-image-color input { position: absolute; inset: -8px; width: 38px; height: 38px; padding: 0; border: 0; }
+.draw-image-canvas-wrap { display: grid; flex: 1; min-height: 0; place-items: center; overflow: hidden; background: #292929; }
+.draw-image-canvas-wrap canvas { display: block; max-width: 100%; max-height: 100%; touch-action: none; cursor: crosshair; box-shadow: 0 3px 12px #0008; }
+.draw-image-canvas-wrap.ratio-16-9 canvas { width: min(100%,calc((100vh - 180px) * 1.7778)); height: auto; }
+.draw-image-canvas-wrap.ratio-9-16 canvas { height: min(100%,calc((100vw - 390px) * .5625)); width: auto; }
+.draw-image-canvas-wrap.ratio-1-1 canvas { width: auto; height: min(100%,calc(100vw - 390px)); aspect-ratio: 1; }
+.draw-image-board>footer { display: flex; align-items: center; justify-content: space-between; padding: 8px 2px 0; color: #858585; font-size: 11px; }
+.draw-image-options { display: flex; flex-direction: column; gap: 11px; overflow: auto; padding: 13px 14px; border-left: 1px solid #333; background: #242424; }
+.draw-image-options fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+.draw-image-options legend,.draw-prompt-label { margin-bottom: 7px; color: #898989; font-size: 11px; }
+.draw-ratios { display: flex; gap: 6px; }
+.draw-ratios button { flex: 1; border-color: #3a3a3a; background: #2c2c2c; }
+.draw-reference-list { display: grid; gap: 5px; max-height: 160px; overflow: auto; }
+.draw-reference-list button { display: grid; grid-template-columns: 30px minmax(0,1fr) auto; align-items: center; gap: 7px; min-height: 36px; padding: 3px 6px; text-align: left; border: 1px solid #363636; border-radius: 6px; background: #292929; }
+.draw-reference-list button.selected { border-color: #d532ae; background: #332431; }
+.draw-reference-list img { width: 28px; height: 28px; object-fit: cover; border-radius: 4px; }
+.draw-reference-list span { overflow: hidden; color: #ddd; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.draw-reference-list small { color: #898989; font-size: 10px; }
+.draw-prompt-label { display: grid; gap: 6px; }
+.draw-prompt-label textarea { min-height: 68px; resize: vertical; padding: 8px; color: #eee; border: 1px solid #3c3c3c; border-radius: 6px; background: #2b2b2b; font: inherit; font-size: 12px; }
+.draw-prompt-preview { min-height: 80px; padding-top: 4px; border-top: 1px solid #383838; }
+.draw-prompt-preview small { color: #888; font-size: 10px; }
+.draw-prompt-preview p { max-height: 120px; overflow: auto; margin: 6px 0; color: #aaa; font-size: 11px; line-height: 1.55; white-space: pre-wrap; }
+.draw-image-footer { min-height: 54px; border-top: 1px solid #333; border-bottom: 0; }
+@media(max-width:760px) { .draw-image-modal { width: 98vw; height: 96vh; } .draw-image-workspace { grid-template-columns: minmax(0,1fr) 220px; } .draw-image-options { padding: 10px; } }
 .tool-divider { width: 1px; margin: 5px 3px; background: var(--line); }
 .canvas-add-menu { position: absolute; z-index: 9; bottom: 70px; left: 17px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; width: 178px; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: #242424; box-shadow: var(--shadow); }
 .canvas-add-menu button { display: flex; align-items: center; gap: 6px; padding: 8px; border-radius: 5px; background: transparent; color: #c8c2be; font-size: 11px; text-align: left; }
