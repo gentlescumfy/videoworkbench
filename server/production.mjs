@@ -279,7 +279,7 @@ export function createProductionService({store,generate,compose}) {
         const slots=isCharacter?['imageUrl','turnaroundUrl','expressionUrl']:isScene?['imageUrl','multiviewUrl']:['imageUrl'];
         if(!slots.includes(input.assetSlot))fail('图片设置目标不正确',400);
         if(input.assetSettings){
-          const settings=z.object({ratio:z.enum(['1:1','2:3','3:2','9:16','16:9','3:4','4:3','21:9','Auto']).optional(),resolution:z.enum(['1K','2K','4K']).optional(),quality:z.enum(['低','标准','高']).optional(),transparent:z.boolean().optional(),model:z.string().max(100).optional(),style:z.string().max(1000).optional()}).parse(input.assetSettings);
+          const settings=z.object({ratio:z.enum(['1:1','2:3','3:2','9:16','16:9','3:4','4:3','21:9','Auto']).optional(),resolution:z.enum(['1K','2K','4K']).optional(),quality:z.enum(['低','标准','高']).optional(),transparent:z.boolean().optional(),model:z.string().max(100).optional(),modelExplicit:z.boolean().optional(),style:z.string().max(1000).optional()}).parse(input.assetSettings);
           item.assetSettings={...item.assetSettings,[input.assetSlot]:{...item.assetSettings?.[input.assetSlot],...settings}};
         }
         if(input.assetReferences)item.assetReferences={...item.assetReferences,[input.assetSlot]:input.assetReferences};
@@ -374,7 +374,8 @@ export function createProductionService({store,generate,compose}) {
     const prompt=input.prompt?.trim()||item[promptKey];
     if(!prompt)fail('请填写图片提示词',400);
     const snapshot=JSON.stringify([item[slot],item[promptKey],item.assetSettings?.[slot],item.assetReferences?.[slot]]);
-    const settings={ratio:slot==='turnaroundUrl'?'16:9':slot==='expressionUrl'?'3:4':'4:3',resolution:'2K',...item.assetSettings?.[slot],references:input.references||item.assetReferences?.[slot]||(slot==='imageUrl'?[]:[item.imageUrl].filter(Boolean)),workflow:false};
+    const {modelExplicit:_modelExplicit,...assetSettings}=item.assetSettings?.[slot]||{};
+    const settings={ratio:slot==='turnaroundUrl'?'16:9':slot==='expressionUrl'?'3:4':'4:3',resolution:'2K',...assetSettings,references:input.references||item.assetReferences?.[slot]||(slot==='imageUrl'?[]:[item.imageUrl].filter(Boolean)),workflow:false};
     const model=input.model||settings.model||p.settings.models?.['图片'];
     const task={id:randomUUID(),runId:randomUUID(),stage:'design_images',agent:'角色设计师',kind:'图片',title:`${item.name} · ${{imageUrl:'选角',turnaroundUrl:'三视图',expressionUrl:'表情图'}[slot]}`,model,prompt,status:'queued',createdAt:now(),assetEdit:true,target:{entity:'character',id:item.id,slot}};
     p.tasks.push(task);p=put(p);const controller=new AbortController();assetRuns.set(key,controller);
