@@ -14,7 +14,7 @@ export type ProductionItem = {
  multiviewUrl?:string;multiviewPrompt?:string;
  characterIds?:string[];sceneId?:string;duration?:number;
  imageSlots?:string[];
- assetSettings?:Record<string,{ratio?:string;resolution?:string;model?:string;style?:string;quality?:string;transparent?:boolean}>;
+ assetSettings?:Record<string,{ratio?:string;resolution?:string;model?:string;modelExplicit?:boolean;style?:string;quality?:string;transparent?:boolean}>;
  assetReferences?:Record<string,string[]>;
 };
 export type ProductionAssetSlot = {
