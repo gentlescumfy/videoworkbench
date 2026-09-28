@@ -129,7 +129,7 @@ export function useProduction(projectId:string,enabled=true) {
 export type ProductionController=ReturnType<typeof useProduction>;
 const ProductionContext=createContext<{inspect:(id:string,slot?:string)=>void;preview:(url:string,kind:string)=>void;replace:(id:string,slot:string)=>void}>({inspect:()=>{},preview:()=>{},replace:()=>{}});
 export const ProductionProvider=ProductionContext.Provider;
-export type ProductionNodeData=Record<string,unknown>&{kind:string;title:string;agent:string;text:string;item?:ProductionItem;assets?:ProductionAssetSlot[];status?:string;references?:string[];referenceImages?:string[];section?:boolean;stage?:string;subtitle?:string};
+export type ProductionNodeData=Record<string,unknown>&{kind:string;title:string;agent:string;text:string;item?:ProductionItem;assets?:ProductionAssetSlot[];status?:string;references?:string[];referenceImages?:string[];section?:boolean;stage?:string;subtitle?:string;cardColor?:string};
 function ProductionShotCard({data,item}:{data:ProductionNodeData;item:ProductionItem}){
  const ctx=useContext(ProductionContext);
  const [slot,setSlot]=useState<'imageUrl'|'videoUrl'>(item.videoPrompt||item.videoUrl?'videoUrl':'imageUrl');
@@ -149,13 +149,14 @@ function ProductionShotCard({data,item}:{data:ProductionNodeData;item:Production
 }
 export function ProductionNode({data}:{data:ProductionNodeData}) {
  const ctx=useContext(ProductionContext);
+ const rolePointer=useRef<{x:number;y:number;moved:boolean}|null>(null);
  const item=data.item;
  if(data.background)return <div className="production-group-background"/>;
  if(data.section)return <div className={`production-section-label${data.active?' active':''}`}><strong>{data.title}</strong><small>{data.subtitle}</small></div>;
  const assets=data.assets|| (item?productionAssetSlots(item,data.kind):[]);
  if(data.kind==='分镜'&&item)return <ProductionShotCard data={data} item={item}/>;
  if(data.kind==='角色'&&item){
-  return <div className={`production-role-node ${assets.some(asset=>asset.slot==='turnaroundUrl')?'with-turnaround':'main-only'} ${assets.some(asset=>asset.slot==='expressionUrl')?'with-expression':''}`}>
+  return <div data-role-card={item.id} onPointerDownCapture={event=>{const target=event.target as HTMLElement;rolePointer.current=target.closest('button,a,input,video,audio')?null:{x:event.clientX,y:event.clientY,moved:false};}} onPointerMoveCapture={event=>{const start=rolePointer.current;if(start&&Math.hypot(event.clientX-start.x,event.clientY-start.y)>5)start.moved=true;}} onPointerUpCapture={event=>{const target=event.target as HTMLElement,start=rolePointer.current;rolePointer.current=null;if(start&&!start.moved&&!target.closest('button,a,input,video,audio'))ctx.inspect(item.id,'card');}} className={`production-role-node ${data.cardColor?`role-color-${data.cardColor}`:''} ${assets.some(asset=>asset.slot==='turnaroundUrl')?'with-turnaround':'main-only'} ${assets.some(asset=>asset.slot==='expressionUrl')?'with-expression':''}`}>
    <header><strong>{data.title}</strong></header>
    <div className="production-role-grid">{[...assets].sort((a,b)=>Number(a.slot==='turnaroundUrl')-Number(b.slot==='turnaroundUrl')).map(asset=><section className={asset.slot==='turnaroundUrl'?'turnaround':asset.slot==='imageUrl'?'selection':'expression'} key={asset.id}>
     <label><span><Image size={13}/>{asset.label}</span><div><button className="nodrag" onClick={()=>ctx.replace(item.id,asset.slot)} aria-label="替换"><Upload size={14}/></button><button data-role-preview className="nodrag" onClick={()=>asset.url?ctx.preview(asset.url,asset.kind):ctx.inspect(item.id)} aria-label="预览"><Maximize2 size={14}/></button></div></label>
