@@ -36,6 +36,9 @@ export function CharacterPopover({p,item,slot,command,accept,editorRef,onClose,o
  const [width,setWidth]=useState(680);
  const [busy,setBusy]=useState('');
  const [agentNote,setAgentNote]=useState('');
+ const [currentReferenceVisible,setCurrentReferenceVisible]=useState(true);
+ const [agentPrefixWidth,setAgentPrefixWidth]=useState(130);
+ const agentPrefix=useRef<HTMLDivElement>(null);
  const [agentMessages,setAgentMessages]=useState<{role:string;text:string}[]>([]);
  const [assistant,setAssistant]=useState(false);
  const [assistantMode,setAssistantMode]=useState('');
@@ -73,6 +76,11 @@ export function CharacterPopover({p,item,slot,command,accept,editorRef,onClose,o
  const changePrompt=(value:string)=>{setPrompt(value);setDirty(true);revision.current++;};
  const changeSettings=(value:Partial<ImageSettings>)=>{setSettings(current=>({...current,...value}));setDirty(true);revision.current++;};
  const changeReferences=(value:string[])=>{setReferences(value);setDirty(true);revision.current++;};
+ useLayoutEffect(()=>{
+  const label=agentPrefix.current;if(!label)return;
+  const measure=()=>setAgentPrefixWidth(Math.ceil(label.getBoundingClientRect().width)+8);
+  measure();const observer=new ResizeObserver(measure);observer.observe(label);return()=>observer.disconnect();
+ },[tab,smart,item.name,slot]);
  const save=():Promise<boolean>=>{
   if(saving.current)return saving.current;
   if(!latest.current.dirty)return Promise.resolve(true);
@@ -190,8 +198,8 @@ export function CharacterPopover({p,item,slot,command,accept,editorRef,onClose,o
    {!smart&&<header><div role="tablist" aria-label="节点对话">{(['prompt','agent'] as const).map(value=><button role="tab" aria-selected={tab===value} className={tab===value?'active':''} key={value} onClick={()=>{setTab(value);setMenu('');}}>{value==='prompt'?'提示词':'Agent 对话'}</button>)}</div><div className="character-header-actions">{tab==='prompt'?<><button onClick={()=>open('templates',{select:(value:string)=>changePrompt(value)})}><Lightbulb size={14}/>模板</button><button onClick={()=>{setAssistant(true);setAssistantResult('');setAssistantMode('');}}><Sparkles size={14}/>提示词助手</button><span className="character-divider"/><IconButton label="翻译" disabled={Boolean(busy)} onClick={()=>void transformPrompt('翻译成英文').then(value=>value&&changePrompt(value))}><Languages size={16}/></IconButton><IconButton label={expanded?'收起输入框':'展开输入框'} onClick={()=>setExpanded(!expanded)}>{expanded?<Minimize2 size={16}/>:<Maximize2 size={16}/>}</IconButton></>:<IconButton label="二次确认" onClick={()=>{setConfirmation(p.settings.confirmation||{image:false,audio:false,video:false,cooldown:true,threshold:100});setConfirmSettings(true);}}><SlidersHorizontal size={15}/></IconButton>}</div></header>}
    <input hidden ref={fileInput} type="file" accept="image/*" multiple onChange={e=>{void uploadReference(Array.from(e.target.files||[]));e.target.value='';}}/>
    <div className="character-popover-content">
-    <div className="character-reference-row">{(tab==='agent'&&!smart?[selectedUrl,...references]:references).filter(Boolean).filter((url,i,all)=>all.indexOf(url)===i).map(url=><div key={url}><button onClick={()=>onPreview(url)}><img src={url} alt="参考图片"/></button><IconButton label="移除参考图片" onClick={()=>changeReferences(references.filter(reference=>reference!==url))}><X size={10}/></IconButton></div>)}{(tab==='prompt'||smart)&&<button className="character-add-image" aria-label={smart?'上传图片':'图片'} onClick={()=>fileInput.current?.click()}><Plus size={19}/>{smart&&<small>上传</small>}</button>}</div>
-    {tab==='prompt'&&!smart?<textarea className="character-prompt-input" aria-label={`${labels[slot]}提示词`} value={prompt} maxLength={12000} onBlur={()=>void save()} onChange={e=>changePrompt(e.target.value)} readOnly={p.status==='running'} placeholder="描述你想要生成的图片"/>:<><div className="character-agent-messages">{agentMessages.map((message,i)=><p className={message.role} key={i}>{message.text}</p>)}</div>{!smart&&<div className="character-agent-label"><span>{selectedUrl&&<img src={selectedUrl} alt=""/>}{item.name}</span>{labels[slot]}：</div>}<textarea className="character-agent-input" aria-label={smart?'智能编辑要求':'Agent 对话输入'} value={agentNote} onChange={e=>setAgentNote(e.target.value)} placeholder={smart?'描述你想要的修改，例如「把背景换成海边」；也可上传图片或点「引用」使用画布上其他图片内容作为参考':'输入 @ 引用图片并设置参考'} onKeyDown={e=>{if(e.key==='@')chooseReference();}}/></>}
+    <div className="character-reference-row">{(tab==='agent'&&!smart?[...(currentReferenceVisible?[selectedUrl]:[]),...references]:references).filter(Boolean).filter((url,i,all)=>all.indexOf(url)===i).map(url=><div key={url}><button onClick={()=>onPreview(url)}><img src={url} alt="参考图片"/></button><IconButton label="移除参考图片" onClick={()=>{if(tab==='agent'&&url===selectedUrl)setCurrentReferenceVisible(false);if(references.includes(url))changeReferences(references.filter(reference=>reference!==url));}}><X size={10}/></IconButton></div>)}{(tab==='prompt'||smart)&&<button className="character-add-image" aria-label={smart?'上传图片':'图片'} onClick={()=>fileInput.current?.click()}><Plus size={19}/>{smart&&<small>上传</small>}</button>}</div>
+    {tab==='prompt'&&!smart?<textarea className="character-prompt-input" aria-label={`${labels[slot]}提示词`} value={prompt} maxLength={12000} onBlur={()=>void save()} onChange={e=>changePrompt(e.target.value)} readOnly={p.status==='running'} placeholder="描述你想要生成的图片"/>:<><div className="character-agent-messages">{agentMessages.map((message,i)=><p className={message.role} key={i}>{message.text}</p>)}</div><div className={`character-agent-composer ${smart?'smart':''}`}>{!smart&&<div ref={agentPrefix} className="character-agent-label"><span>{selectedUrl&&<img src={selectedUrl} alt=""/>}{item.name}</span>{labels[slot]}：</div>}<textarea className="character-agent-input" style={smart?undefined:{textIndent:agentPrefixWidth}} aria-label={smart?'智能编辑要求':'Agent 对话输入'} value={agentNote} onChange={e=>setAgentNote(e.target.value)} placeholder={smart?'描述你想要的修改，例如「把背景换成海边」；也可上传图片或点「引用」使用画布上其他图片内容作为参考':'输入 @ 引用图片并设置参考'} onKeyDown={e=>{if(e.key==='@')chooseReference();}}/></div></>}
    </div>
    {currentTask?.status==='failed'&&<div className="character-task-notice" role="status"><span>{currentTask.error}</span>{currentTask.outputUrl&&<button onClick={()=>onPreview(currentTask.outputUrl!)}>查看生成结果</button>}</div>}
    <footer>
