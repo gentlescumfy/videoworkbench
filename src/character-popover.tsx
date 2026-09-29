@@ -74,8 +74,8 @@ export function CharacterPopover({p,item,slot:selectedSlot,command,accept,editor
  const revision=useRef(0);
  const imageSources=data.agentSources.filter(source=>source.kind==='图文'&&source.enabled&&source.apiKeyConfigured);
  const configured=imageSources.flatMap(source=>source.models.map(model=>({...model,source:source.name})));
- const configuredNames=new Set(configured.map(model=>model.name));
- const selectedModel=settings.modelExplicit&&configuredNames.has(settings.model||'')?settings.model!:'Oii Image 2';
+ const configuredNames=new Set(configured.map(model=>model.name)); const defaultConfiguredModel=imageSources.find(source=>source.defaultModel&&source.models.some(model=>model.name===source.defaultModel))?.defaultModel||configured[0]?.name;
+ const selectedModel=settings.modelExplicit&&configuredNames.has(settings.model||'')?settings.model!:defaultConfiguredModel||'Oii Image 2';
  const modelLabel=/^oii-image/i.test(selectedModel)?selectedModel.includes('2.5')?'Oii Image 2.5 Fast':'Oii Image 2':selectedModel;
  const canGenerate=configured.some(model=>model.name===selectedModel);
  const selectedUrl=String(item[slot as keyof ProductionItem]||'');
