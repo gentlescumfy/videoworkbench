@@ -1,4 +1,4 @@
-export type Asset = { id: string; name: string; category: string; url: string; mime: string; size: number; favorite: boolean; trashed: boolean; createdAt: string; description?: string };
+export type Asset = { id: string; name: string; category: string; url: string; mime: string; size: number; favorite: boolean; trashed: boolean; createdAt: string; description?: string; sourceUrl?: string };
 export type CanvasNode = { id: string; type: string; position: { x: number; y: number }; data: { title: string; kind: string; text: string; url?: string; mime?: string; duration?: number; color?: string; model?: string; style?: string; ratio?: string; resolution?: string; firstFrameUrl?: string; lastFrameUrl?: string }; selected?: boolean };
 export type CanvasEdge = { id: string; source: string; target: string; type?: string; animated?: boolean };
 export type WorkflowNodeAction = { kind: string; title: string; text: string; duration?: number };
