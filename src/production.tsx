@@ -34,9 +34,9 @@ const statusLabels:Record<string,string>={pending:'待生成',queued:'排队中'
 export function productionAssetSlots(item:ProductionItem,kind:string):ProductionAssetSlot[] {
  if(kind==='角色')return [
   {id:`${item.id}:selection`,slot:'imageUrl',label:'选角',kind:'image',url:item.imageUrl,prompt:item.imagePrompt},
-  {id:`${item.id}:turnaround`,slot:'turnaroundUrl',label:'三视图',kind:'image',url:item.turnaroundUrl,prompt:item.turnaroundPrompt||item.imagePrompt},
-  {id:`${item.id}:expression`,slot:'expressionUrl',label:'表情图',kind:'image',url:item.expressionUrl,prompt:item.expressionPrompt||item.imagePrompt},
- ].filter(asset=>!item.imageSlots||item.imageSlots.includes(asset.slot)) as ProductionAssetSlot[];
+  {id:`${item.id}:turnaround`,slot:'turnaroundUrl',label:'三视图',kind:'image',url:item.turnaroundUrl,prompt:item.turnaroundPrompt||`${item.imagePrompt}\n生成同一角色的正面、侧面、背面三视图，保持五官与服装一致。`},
+  {id:`${item.id}:expression`,slot:'expressionUrl',label:'表情图',kind:'image',url:item.expressionUrl,prompt:item.expressionPrompt||`${item.imagePrompt}\n生成同一角色的多种表情图，保持五官与服装一致。`},
+ ] as ProductionAssetSlot[];
  if(kind==='场景')return [
   {id:`${item.id}:main`,slot:'imageUrl',label:'主图',kind:'image',url:item.imageUrl,prompt:item.imagePrompt},
   {id:`${item.id}:multiview`,slot:'multiviewUrl',label:'多视角',kind:'image',url:item.multiviewUrl,prompt:item.multiviewPrompt||item.imagePrompt},
@@ -156,20 +156,24 @@ export function ProductionNode({data}:{data:ProductionNodeData}) {
  const assets=data.assets|| (item?productionAssetSlots(item,data.kind):[]);
  if(data.kind==='分镜'&&item)return <ProductionShotCard data={data} item={item}/>;
  if(data.kind==='角色'&&item){
-  return <div data-role-card={item.id} onPointerDownCapture={event=>{const target=event.target as HTMLElement;rolePointer.current=target.closest('button,a,input,video,audio')?null:{x:event.clientX,y:event.clientY,moved:false};}} onPointerMoveCapture={event=>{const start=rolePointer.current;if(start&&Math.hypot(event.clientX-start.x,event.clientY-start.y)>5)start.moved=true;}} onPointerUpCapture={event=>{const target=event.target as HTMLElement,start=rolePointer.current;rolePointer.current=null;if(start&&!start.moved&&!target.closest('button,a,input,video,audio'))ctx.inspect(item.id,'card');}} className={`production-role-node ${data.cardColor?`role-color-${data.cardColor}`:''} ${assets.some(asset=>asset.slot==='turnaroundUrl')?'with-turnaround':'main-only'} ${assets.some(asset=>asset.slot==='expressionUrl')?'with-expression':''}`}>
+  const visibleAssets=assets.filter(asset=>asset.slot==='imageUrl'||Boolean(asset.url));
+  const hasTurnaround=visibleAssets.some(asset=>asset.slot==='turnaroundUrl');
+  const hasExpression=visibleAssets.some(asset=>asset.slot==='expressionUrl');
+  return <div data-role-card={item.id} onPointerDownCapture={event=>{const target=event.target as HTMLElement;rolePointer.current=target.closest('button,a,input,video,audio')?null:{x:event.clientX,y:event.clientY,moved:false};}} onPointerMoveCapture={event=>{const start=rolePointer.current;if(start&&Math.hypot(event.clientX-start.x,event.clientY-start.y)>5)start.moved=true;}} onPointerUpCapture={event=>{const target=event.target as HTMLElement,start=rolePointer.current;rolePointer.current=null;if(start&&!start.moved&&!target.closest('button,a,input,video,audio'))ctx.inspect(item.id,'card');}} className={`production-role-node ${data.cardColor?`role-color-${data.cardColor}`:''} ${hasTurnaround?'with-turnaround':'main-only'} ${hasExpression?'with-expression':''}`}>
    <header><strong>{data.title}</strong></header>
-   <div className="production-role-grid">{[...assets].sort((a,b)=>Number(a.slot==='turnaroundUrl')-Number(b.slot==='turnaroundUrl')).map(asset=><section className={asset.slot==='turnaroundUrl'?'turnaround':asset.slot==='imageUrl'?'selection':'expression'} key={asset.id}>
+   <div className="production-role-grid">{visibleAssets.map(asset=><section className={asset.slot==='turnaroundUrl'?'turnaround':asset.slot==='imageUrl'?'selection':'expression'} key={asset.id}>
     <label><span><Image size={13}/>{asset.label}</span><div><button className="nodrag" onClick={()=>ctx.replace(item.id,asset.slot)} aria-label="替换"><Upload size={14}/></button><button data-role-preview className="nodrag" onClick={()=>asset.url?ctx.preview(asset.url,asset.kind):ctx.inspect(item.id)} aria-label="预览"><Maximize2 size={14}/></button></div></label>
     <button data-role-asset={`${item.id}:${asset.slot}`} className={`production-role-media ${asset.url?'ready':''} nodrag`} aria-label={`编辑${data.title}的${asset.label}`} onClick={()=>ctx.inspect(item.id,asset.slot)}>{asset.url?<img src={asset.url} alt={`${data.title}${asset.label}`}/>:<><Image size={24}/><span>{asset.label}待生成</span></>}</button>
    </section>)}</div>
   </div>;
  }
  if(data.kind==='场景'&&item){
-  return <div className="production-scene-node">
-   <header><span>{data.title}</span><button className="nodrag" onClick={()=>ctx.inspect(item.id)}>详情</button></header>
+  return <div data-role-card={item.id} className={`production-scene-node ${data.cardColor?`role-color-${data.cardColor}`:''}`} onPointerDownCapture={event=>{if((event.target as HTMLElement).closest('button,a,input,video,audio'))return;const start={x:event.clientX,y:event.clientY,moved:false};const move=(e:PointerEvent)=>{if(Math.hypot(e.clientX-start.x,e.clientY-start.y)>5)start.moved=true;};const done=(e:PointerEvent)=>{window.removeEventListener('pointermove',move,true);window.removeEventListener('pointerup',done,true);window.removeEventListener('pointercancel',cancel,true);if(e.pointerId===event.pointerId&&!start.moved)ctx.inspect(item.id,'card');};const cancel=()=>{window.removeEventListener('pointermove',move,true);window.removeEventListener('pointerup',done,true);window.removeEventListener('pointercancel',cancel,true);};window.addEventListener('pointermove',move,true);window.addEventListener('pointerup',done,true);window.addEventListener('pointercancel',cancel,true);}}>
+
+   <header><Image size={16}/><span>{data.title}</span></header>
    <div className="production-scene-grid">{assets.slice(0,2).map(asset=><section key={asset.id}>
-    <div className="production-scene-label"><span><Image size={12}/>{asset.label}</span><div><button className="nodrag" onClick={()=>ctx.replace(item.id,asset.slot)} aria-label="替换"><Upload size={14}/></button><button className="nodrag" onClick={()=>asset.url?ctx.preview(asset.url,asset.kind):ctx.inspect(item.id)} aria-label="预览"><Maximize2 size={14}/></button></div></div>
-    <button className="production-scene-image nodrag" onClick={()=>asset.url?ctx.preview(asset.url,asset.kind):ctx.inspect(item.id)}>{asset.url?<img src={asset.url} alt={`${data.title}${asset.label}`}/>:<><Image size={25}/><span>待生成</span></>}</button>
+    <div className="production-scene-label"><span><Image size={12}/>{asset.label}</span></div>
+    <div className="production-scene-image-wrap"><button data-role-asset={`${item.id}:${asset.slot}`} aria-label={`编辑${data.title}的${asset.label}`} className="production-scene-image nodrag" onClick={()=>ctx.inspect(item.id,asset.slot)}>{asset.url?<img src={asset.url} alt={`${data.title}${asset.label}`}/>:<><Image size={25}/><span>待生成</span></>}</button><div className="production-scene-image-actions"><button className="nodrag" onClick={()=>ctx.replace(item.id,asset.slot)} aria-label="替换"><Upload size={14}/></button><button className="nodrag" onClick={()=>asset.url?ctx.preview(asset.url,asset.kind):ctx.inspect(item.id,asset.slot)} aria-label="预览"><Maximize2 size={14}/></button></div></div>
    </section>)}</div>
   </div>;
  }
@@ -202,13 +206,18 @@ export function productionNodes(p:Production|null,origin={x:0,y:0}):ProductionCa
  const {x,y}=origin;
  const nodeSize=(height:number,width=286)=>({width,height});
  const section=(id:string,kind:string,title:string,stage:string,subtitle:string,px:number,py:number,active:boolean,width=286)=>result.push({id,type:'production',position:{x:px,y:py},draggable:false,...nodeSize(50,width),data:{kind,title,agent:'',text:'',section:true,stage,subtitle,active}});
- const roleSize=(item:ProductionItem)=>{const slots=productionAssetSlots(item,'角色');const multi=slots.some(asset=>asset.slot==='turnaroundUrl');return {width:slots.some(asset=>asset.slot==='expressionUrl')?1076:multi?800:560,height:multi?924:424};};
+ const roleSize=(item:ProductionItem)=>{
+  const slots=productionAssetSlots(item,'角色');
+  const hasTurnaround=Boolean(slots.find(asset=>asset.slot==='turnaroundUrl')?.url);
+  const hasExpression=Boolean(slots.find(asset=>asset.slot==='expressionUrl')?.url);
+  return {width:hasExpression?1076:hasTurnaround?800:560,height:hasTurnaround?924:424};
+ };
  const card=(item:ProductionItem,kind:string,agent:string,px:number,py:number)=>{
   const relevant=kind==='分镜'&&['storyboard_images','videos','shot_audio'].includes(p.stage)?p.stage:undefined;
   const task=p.tasks.filter(t=>t.target?.id===item.id&&(!relevant||t.stage===relevant)).at(-1);
   const assets=productionAssetSlots(item,kind).filter(asset=>kind!=='分镜'||asset.slot!=='audioUrl'||asset.url||p.settings.separateShotAudio);
-  const height=kind==='分镜'?820:kind==='剧本'?823:kind==='角色'?roleSize(item).height:kind==='场景'?300:270;
-  const width=kind==='角色'?roleSize(item).width:kind==='场景'?900:kind==='分镜'?320:286;
+  const height=kind==='分镜'?820:kind==='剧本'?823:kind==='角色'?roleSize(item).height:kind==='场景'?335:270;
+  const width=kind==='角色'?roleSize(item).width:kind==='场景'?919:kind==='分镜'?320:286;
   const status=task?.status||(relevant?(relevant==='videos'?item.videoUrl:relevant==='shot_audio'?item.audioUrl:item.imageUrl)?'completed':'pending':undefined);
   result.push({id:`production-${item.id}`,type:'production',position:{x:px,y:py},draggable:true,...nodeSize(height,width),data:{kind,agent,title:kind==='分镜'?`镜头 ${item.number}`:item.name||'',text:item.description,item,assets,status,stage:kind==='分镜'?'storyboard':kind==='角色'||kind==='场景'?'design':undefined,references:kind==='分镜'?[...(item.characterIds||[]).map(id=>p.characters.find(c=>c.id===id)?.name||''),p.scenes.find(s=>s.id===item.sceneId)?.name||''].filter(Boolean):[],referenceImages:kind==='分镜'?[item.imageUrl,...(item.characterIds||[]).map(id=>p.characters.find(c=>c.id===id)?.imageUrl),p.scenes.find(s=>s.id===item.sceneId)?.imageUrl].filter((url):url is string=>Boolean(url)):[]}});
  };
@@ -220,8 +229,8 @@ export function productionNodes(p:Production|null,origin={x:0,y:0}):ProductionCa
  section('production-section-characters','角色','角色设计师','design',`${p.characters.length} 个角色`,x,assetY,designActive,1860);
  let roleY=assetY+38;for(let i=0;i<p.characters.length;i+=2){const row=p.characters.slice(i,i+2);row.forEach((item,column)=>card(item,'角色','角色设计师',x+column*1140,roleY));roleY+=Math.max(...row.map(item=>roleSize(item).height))+40;}
  const sceneY=roleY+80;
- section('production-section-scenes','场景','场景设计师','design',`${p.scenes.length} 个场景`,x,sceneY,designActive,1860);
- p.scenes.forEach((item,i)=>card(item,'场景','场景设计师',x+(i%2)*960,sceneY+38+Math.floor(i/2)*350));
+ section('production-section-scenes','场景','场景设计师','design','',x,sceneY,designActive,1860);
+ p.scenes.forEach((item,i)=>card(item,'场景','场景设计师',x+(i%2)*935,sceneY+38+Math.floor(i/2)*351));
  const storyboardY=sceneY+38+Math.max(1,Math.ceil(p.scenes.length/2))*350+80;
  result.push({id:'production-storyboard-background',type:'production',position:{x:x-30,y:storyboardY+34},width:2540,height:Math.max(1,Math.ceil(p.shots.length/7))*860+20,draggable:false,data:{kind:'分镜背景',title:'',agent:'',text:'',background:true}});
  section('production-section-storyboard','分镜','分镜师','storyboard',`${p.shots.length} 个镜头`,x,storyboardY,storyboardActive,2480);
