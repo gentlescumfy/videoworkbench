@@ -162,17 +162,17 @@
  color: #eee;
  box-shadow: 0 18px 45px #00000026;
 }
-.production-scene-node { width: 100%; height: 300px; color: #eee; }
-.production-scene-node > header { display: flex; justify-content: space-between; align-items: center; height: 28px; padding: 0 6px; font-size: 12px; }
+.production-scene-node { width: 100%; height: 335px; color: #eee; }
+.production-scene-node > header { display: flex; justify-content: space-between; align-items: center; height: 30px; gap: 8px; padding: 0 6px; font-size: 14px; }
 .production-scene-node > header button { background: none; color: #9d929b; font-size: 10px; }
-.production-scene-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; height: 272px; padding: 18px; border-radius: 18px; background: #1d1d1d; }
+.production-scene-grid { display: grid; grid-template-columns: repeat(2, 400px); gap: 30px; height: 305px; padding: 26px 59px 26px 30px; border-radius: 24px; background: #1d1d1d; }
 .production-scene-grid section { min-width: 0; }
 .production-scene-label { display: flex; justify-content: space-between; align-items: center; height: 23px; color: #b5b5b5; font-size: 11px; }
 .production-scene-label > span { display: inline-flex; align-items: center; gap: 5px; }
 .production-scene-label > div { display: flex; gap: 8px; }
 .production-scene-label button { background: none; color: #888; font-size: 10px; }
 .production-scene-label button:hover, .production-scene-node > header button:hover { color: #eee; }
-.production-scene-image { display: grid; width: 100%; height: 205px; place-content: center; justify-items: center; gap: 8px; overflow: hidden; border-radius: 8px; background: #151515; color: #666; font-size: 11px; }
+.production-scene-image { display: grid; width: 100%; height: 225px; padding: 0; place-content: center; justify-items: center; gap: 8px; overflow: hidden; border-radius: 8px; background: #151515; color: #666; font-size: 11px; }
 .production-scene-image img { width: 100%; height: 100%; object-fit: cover; }
 .production-role-node > header {
  display: flex;
@@ -322,3 +322,17 @@
  .production-character-portrait > div { min-height: 220px; }
  .production-character-assets { grid-template-columns: 1fr; }
 }
+
+.production-scene-image-wrap { position: relative; }
+.production-scene-image-actions { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; }
+.production-scene-image-actions button { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; background: #202020b3; color: #ddd; }
+.production-scene-node > header { justify-content: flex-start; }
+.production-scene-node.role-color-pink .production-scene-grid { background: #352731; }
+.production-scene-node.role-color-yellow .production-scene-grid { background: #353023; }
+.production-scene-node.role-color-purple .production-scene-grid { background: #30283c; }
+.production-scene-node.role-color-blue .production-scene-grid { background: #26313c; }
+.production-scene-node.role-color-green .production-scene-grid { background: #28362b; }
+.production-scene-node.role-color-coral .production-scene-grid { background: #3c2a25; }
+.production-scene-node.role-color-cyan .production-scene-grid { background: #253738; }
+
+.production-scene-label { height: 20px; margin-bottom: 8px; }
