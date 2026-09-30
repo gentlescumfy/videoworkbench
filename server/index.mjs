@@ -267,12 +267,12 @@ app.get('/api/projects/:id/production',(req,res)=>{
  res.json({production:production.get(req.params.id),stages:production.stages});
 });
 app.post('/api/projects/:id/production/commands',(req,res)=>{
- const input=validate(z.object({version:z.number().int().min(0),action:z.enum(['start','continue','revise','retry','skip','stop','edit','replace_asset','configure','recompose']),prompt:z.string().max(50000).optional(),mode:z.enum(['one','all']).optional(),targetIds:z.array(text).max(100).optional(),targetNumbers:z.array(z.number().int().min(1).max(100)).max(100).optional(),targetId:text.optional(),assetSlot:z.string().max(40).optional(),assetUrl:mediaUrl.optional(),assetSettings:z.record(z.string(),z.unknown()).optional(),assetReferences:z.array(mediaUrl).max(10).optional(),changes:z.record(z.string(),z.string().max(12000)).optional(),settings:z.object({style:z.string().max(1000).optional(),skill:z.string().max(1000).optional(),ratio:z.string().max(20).optional(),resolution:z.string().max(20).optional(),duration:z.number().min(1).max(30).optional(),separateShotAudio:z.boolean().optional(),confirmation:z.object({image:z.boolean(),audio:z.boolean(),video:z.boolean(),cooldown:z.boolean(),threshold:z.number().int().min(1).max(100000)}).optional(),models:z.record(z.string(),z.string().max(100)).optional()}).optional()}),req.body);
+ const input=validate(z.object({version:z.number().int().min(0),action:z.enum(['start','continue','revise','retry','skip','stop','edit','enable_asset_slot','replace_asset','configure','recompose']),prompt:z.string().max(50000).optional(),mode:z.enum(['one','all']).optional(),targetIds:z.array(text).max(100).optional(),targetNumbers:z.array(z.number().int().min(1).max(100)).max(100).optional(),targetId:text.optional(),assetSlot:z.string().max(40).optional(),assetUrl:mediaUrl.optional(),assetSettings:z.record(z.string(),z.unknown()).optional(),assetReferences:z.array(mediaUrl).max(10).optional(),changes:z.record(z.string(),z.string().max(12000)).optional(),settings:z.object({style:z.string().max(1000).optional(),skill:z.string().max(1000).optional(),ratio:z.string().max(20).optional(),resolution:z.string().max(20).optional(),duration:z.number().min(1).max(30).optional(),separateShotAudio:z.boolean().optional(),confirmation:z.object({image:z.boolean(),audio:z.boolean(),video:z.boolean(),cooldown:z.boolean(),threshold:z.number().int().min(1).max(100000)}).optional(),models:z.record(z.string(),z.string().max(100)).optional()}).optional()}),req.body);
  try{res.status(202).json(production.command(req.params.id,input));}catch(e){res.status(e.status||500).json({error:e.message});}
 });
 app.post('/api/projects/:id/production/assets/generate',(req,res)=>{
  if(!store.get('project',req.params.id))return notFound(res);
- const input=validate(z.object({version:z.number().int().min(0),targetId:text,assetSlot:z.enum(['imageUrl','turnaroundUrl','expressionUrl']),model:z.string().min(1).max(100),prompt:z.string().trim().min(1).max(12000).optional(),references:z.array(mediaUrl).max(10).optional()}),req.body);
+ const input=validate(z.object({version:z.number().int().min(0),targetId:text,assetSlot:z.enum(['imageUrl','turnaroundUrl','expressionUrl','multiviewUrl']),model:z.string().min(1).max(100),prompt:z.string().trim().min(1).max(12000).optional(),references:z.array(mediaUrl).max(10).optional()}),req.body);
  res.status(202).json(production.generateAsset(req.params.id,input));
 });
 if(!store.get('profile','local')) store.put('profile',{id:'local',name:'本地创作者',avatar:'/assets/avatar.jpg',checkedIn:null,credits:0});
@@ -300,6 +300,8 @@ const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:50*1024*102
 app.post('/api/assets/upload',upload.array('files',20),async(req,res)=>{
   if(!req.files?.length)return res.status(400).json({error:'请选择文件'});
   const category=validate(z.enum(['角色','场景','道具','合集','其他']),req.body.category||'其他');
+  let sourceUrls;
+  if(req.body.sourceUrls!==undefined){try{sourceUrls=validate(z.array(mediaUrl).length(req.files.length),JSON.parse(req.body.sourceUrls));}catch{return res.status(400).json({error:'素材来源地址不正确'});}}
   const checked=[];
   for(const file of req.files){
     const type=await fileTypeFromBuffer(file.buffer);
@@ -307,7 +309,7 @@ app.post('/api/assets/upload',upload.array('files',20),async(req,res)=>{
     checked.push({file,type});
   }
   const assets=[];
-  for(const {file,type} of checked){const id=randomUUID();const filename=`${id}.${type.ext}`;await writeFile(path.join(uploadDir,filename),file.buffer);const name=Buffer.from(file.originalname,'latin1').toString('utf8');assets.push(store.put('asset',{id,name:name.includes('\uFFFD')?file.originalname:name,category,url:`/uploads/${filename}`,mime:type.mime,size:file.size,favorite:false,trashed:false,createdAt:new Date().toISOString(),description:''}));}
+  for(const [index,{file,type}] of checked.entries()){const sourceUrl=sourceUrls?.[index];const existing=sourceUrl&&store.list('asset').find(asset=>asset.sourceUrl===sourceUrl&&asset.category===category&&!asset.trashed);if(existing){assets.push(existing);continue;}const id=randomUUID();const filename=`${id}.${type.ext}`;await writeFile(path.join(uploadDir,filename),file.buffer);const name=Buffer.from(file.originalname,'latin1').toString('utf8');assets.push(store.put('asset',{id,name:name.includes('\uFFFD')?file.originalname:name,category,url:`/uploads/${filename}`,mime:type.mime,size:file.size,favorite:false,trashed:false,createdAt:new Date().toISOString(),description:'',...(sourceUrl?{sourceUrl}:{})}));}
   res.status(201).json({assets});
 });
 app.patch('/api/assets/:id',(req,res)=>{const value=store.update('asset',req.params.id,validate(z.object({name:text,category:z.enum(['角色','场景','道具','合集','其他']),favorite:z.boolean(),trashed:z.boolean(),description:z.string().max(10000)}).partial(),req.body));value?res.json(value):notFound(res);});
