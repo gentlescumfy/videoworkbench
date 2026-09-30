@@ -264,6 +264,16 @@ export function createProductionService({store,generate,compose}) {
       event(p,input.prompt.trim(),'user');
       return launch(p,phase,{note:input.prompt});
     }
+    if(action==='enable_asset_slot'){
+      const item=p.characters.find(x=>x.id===input.targetId);
+      if(!item||!['turnaroundUrl','expressionUrl'].includes(input.assetSlot))fail('派生图片目标不正确',400);
+      if(item.imageSlots&&!item.imageSlots.includes(input.assetSlot)){
+        item.imageSlots=[...new Set([...item.imageSlots,'imageUrl',input.assetSlot])];
+        event(p,`已为「${item.name}」添加${input.assetSlot==='turnaroundUrl'?'三视图':'表情图'}派生项。`,'user');
+        return put(p);
+      }
+      return structuredClone(p);
+    }
     if(action==='edit'){
       const item=[...p.characters,...p.scenes,...p.shots].find(x=>x.id===input.targetId);
       if(!item)fail('内容不存在',404);
@@ -365,26 +375,28 @@ export function createProductionService({store,generate,compose}) {
     let p=get(id);
     if(input.version!==p.version)fail('制作内容已更新，请刷新后重试。');
     if(p.status==='running'||active.has(id))fail('请等待当前阶段完成。');
-    const item=p.characters.find(item=>item.id===input.targetId);
+    const scene=p.scenes.find(item=>item.id===input.targetId);
+    const item=scene||p.characters.find(item=>item.id===input.targetId);
     const slot=input.assetSlot;
-    const promptKey={imageUrl:'imagePrompt',turnaroundUrl:'turnaroundPrompt',expressionUrl:'expressionPrompt'}[slot];
-    if(!item||!promptKey||item.imageSlots&&!item.imageSlots.includes(slot))fail('角色图片不存在',404);
+    const promptKey=(scene?{imageUrl:'imagePrompt',multiviewUrl:'multiviewPrompt'}:{imageUrl:'imagePrompt',turnaroundUrl:'turnaroundPrompt',expressionUrl:'expressionPrompt'})[slot];
+    if(!item||!promptKey||!scene&&item.imageSlots&&!item.imageSlots.includes(slot))fail(scene?'场景图片不存在':'角色图片不存在',404);
     const key=`${id}:${item.id}:${slot}`;
     if(assetRuns.has(key))fail('这张图片正在生成，请等待完成。');
-    const prompt=input.prompt?.trim()||item[promptKey];
+    const variantPrompt=slot==='turnaroundUrl'?`${item.imagePrompt}\n生成同一角色的正面、侧面、背面三视图，保持五官与服装一致。`:slot==='expressionUrl'?`${item.imagePrompt}\n生成同一角色的多种表情图，保持五官与服装一致。`:slot==='multiviewUrl'?`${item.imagePrompt}\n同一场景的多视角构图，保持环境细节一致。`:'';
+    const prompt=input.prompt?.trim()||item[promptKey]||variantPrompt;
     if(!prompt)fail('请填写图片提示词',400);
     const snapshot=JSON.stringify([item[slot],item[promptKey],item.assetSettings?.[slot],item.assetReferences?.[slot]]);
     const {modelExplicit:_modelExplicit,...assetSettings}=item.assetSettings?.[slot]||{};
-    const settings={ratio:slot==='turnaroundUrl'?'16:9':slot==='expressionUrl'?'3:4':'4:3',resolution:'2K',...assetSettings,references:input.references||item.assetReferences?.[slot]||(slot==='imageUrl'?[]:[item.imageUrl].filter(Boolean)),workflow:false};
+    const settings={ratio:scene||slot==='turnaroundUrl'?'16:9':slot==='expressionUrl'?'3:4':'4:3',resolution:'2K',...assetSettings,references:input.references||item.assetReferences?.[slot]||(slot==='imageUrl'?[]:[item.imageUrl].filter(Boolean)),workflow:false};
     const model=input.model||settings.model||p.settings.models?.['图片'];
-    const task={id:randomUUID(),runId:randomUUID(),stage:'design_images',agent:'角色设计师',kind:'图片',title:`${item.name} · ${{imageUrl:'选角',turnaroundUrl:'三视图',expressionUrl:'表情图'}[slot]}`,model,prompt,status:'queued',createdAt:now(),assetEdit:true,target:{entity:'character',id:item.id,slot}};
+    const task={id:randomUUID(),runId:randomUUID(),stage:'design_images',agent:scene?'场景设计师':'角色设计师',kind:'图片',title:`${item.name} · ${{imageUrl:scene?'主图':'选角',turnaroundUrl:'三视图',expressionUrl:'表情图',multiviewUrl:'多视角'}[slot]}`,model,prompt,status:'queued',createdAt:now(),assetEdit:true,target:{entity:scene?'scene':'character',id:item.id,slot}};
     p.tasks.push(task);p=put(p);const controller=new AbortController();assetRuns.set(key,controller);
     void(async()=>{
       let generatedUrl='';
       try{
         let latest=get(id);Object.assign(latest.tasks.find(row=>row.id===task.id),{status:'running',startedAt:now()});put(latest);
         const out=await generate({kind:'图片',prompt,model,settings,signal:controller.signal});
-        latest=get(id);const current=latest.characters.find(row=>row.id===item.id);const row=latest.tasks.find(row=>row.id===task.id);
+        latest=get(id);const current=(scene?latest.scenes:latest.characters).find(row=>row.id===item.id);const row=latest.tasks.find(row=>row.id===task.id);
         if(!out.outputUrl||!(/^(https:\/\/|\/(?:uploads|exports)\/)/.test(out.outputUrl)))throw new Error('服务没有返回可用图片');
         generatedUrl=out.outputUrl;row.outputUrl=generatedUrl;
         if(!current||snapshot!==JSON.stringify([current[slot],current[promptKey],current.assetSettings?.[slot],current.assetReferences?.[slot]]))throw new Error('生成期间该素材已修改，保留新修改。生成图片可从任务详情下载。');
