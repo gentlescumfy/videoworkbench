@@ -120,4 +120,4 @@ export function TldrawCanvas({nodes,edges,editorRef,onSelect,onPane,onPosition,o
   }}><CanvasNavigation nodes={nodes} minimap={minimap}/></Tldraw>
  </div>;
 }
-export function canvasFit(editor:Editor|null,nodes:DisplayNode[],padding=.25){if(!editor||!nodes.length)return;const bounds=nodes.map(box);const left=Math.min(...bounds.map(b=>b.x));const top=Math.min(...bounds.map(b=>b.y));const right=Math.max(...bounds.map(b=>b.x+b.w));const bottom=Math.max(...bounds.map(b=>b.y+b.h));editor.zoomToBounds({x:left,y:top,w:right-left,h:bottom-top},{inset:Math.max(40,Math.min(180,padding*400)),targetZoom:.85,animation:{duration:400}});}
+export function canvasFit(editor:Editor|null,nodes:DisplayNode[],padding=.25){if(!editor||!nodes.length)return;const bounds=nodes.map(box);const left=Math.min(...bounds.map(b=>b.x));const top=Math.min(...bounds.map(b=>b.y));const right=Math.max(...bounds.map(b=>b.x+b.w));const bottom=Math.max(...bounds.map(b=>b.y+b.h));editor.zoomToBounds({x:left,y:top,w:right-left,h:bottom-top},{inset:Math.max(40,Math.min(180,padding*400)),animation:{duration:400}});}
