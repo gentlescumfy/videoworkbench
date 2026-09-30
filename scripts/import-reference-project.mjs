@@ -25,6 +25,7 @@ const hashOf = raw => {
 const assetByHash = new Map(assets.filter(a => a.localUrl).map(a => [hashOf(a.uri), a]));
 const local = raw => assetByHash.get(hashOf(raw))?.localUrl || '';
 const assetFor = (label, kind) => assets.find(a => a.label === label && a.kind === kind)?.localUrl || '';
+const mimeFor = asset => asset.kind === 'video' ? 'video/mp4' : ({ '.webp': 'image/webp', '.png': 'image/png', '.gif': 'image/gif' }[path.extname(asset.localUrl).toLowerCase()] || 'image/jpeg');
 const idFor = (type, number) => `reference-${type}-${String(number).padStart(2, '0')}`;
 const section = source.script.split('## 三、人物设定')[1]?.split('## 四、分集剧本')[0] || '';
 const characterDescription = name => {
@@ -114,7 +115,7 @@ for (const asset of assets.filter(a => a.localUrl)) {
   const file = path.join(root, 'data', asset.localUrl.slice(1));
   store.put('asset', {
     id: idFor('asset', asset.index), name: asset.label, category: asset.kind === 'video' ? '视频' : '图片',
-    url: asset.localUrl, mime: asset.kind === 'video' ? 'video/mp4' : 'image/jpeg', size: statSync(file).size,
+    url: asset.localUrl, mime: mimeFor(asset), size: statSync(file).size,
     favorite: false, trashed: false, createdAt: now, description: `原项目资源 ${asset.index}`,
   });
 }
