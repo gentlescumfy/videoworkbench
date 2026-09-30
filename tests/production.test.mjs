@@ -316,6 +316,27 @@ async function settledAsset(service,id,taskId){
 }
 const generateRole=(service,id,input={})=>service.generateAsset(id,{version:service.get(id).version,targetId:'role',assetSlot:'expressionUrl',model:'configured-image-model',...input});
 
+test('derived role assets can be opened from the card and generate with a default prompt',async()=>{
+ let received;const {id,service,store}=assetFixture(async input=>{received=input;return {outputUrl:'/uploads/derived-expression.png'};});
+ const before=service.get(id);before.characters[0].imageSlots=['imageUrl'];before.characters[0].expressionPrompt='';store.put('production',before);
+ assert.throws(()=>generateRole(service,id),/角色图片不存在/);
+ command(service,id,{action:'enable_asset_slot',targetId:'role',assetSlot:'expressionUrl'});
+ assert.deepEqual(service.get(id).characters[0].imageSlots,['imageUrl','expressionUrl']);
+ const {taskId}=generateRole(service,id);const after=await settledAsset(service,id,taskId);
+ assert.equal(after.characters[0].expressionUrl,'/uploads/derived-expression.png');
+ assert.match(received.prompt,/多种表情图/);
+ assert.deepEqual(received.settings.references,['/uploads/head.png']);
+});
+
+test('opening an existing derived role image restores its missing slot permission',async()=>{
+ const {id,service,store}=assetFixture(async()=>({outputUrl:'/uploads/refreshed-expression.png'}));
+ const before=service.get(id);before.characters[0].imageSlots=['imageUrl'];before.characters[0].expressionUrl='/uploads/old-expression.png';store.put('production',before);
+ command(service,id,{action:'enable_asset_slot',targetId:'role',assetSlot:'expressionUrl'});
+ assert.ok(service.get(id).characters[0].imageSlots.includes('expressionUrl'));
+ const {taskId}=generateRole(service,id);const after=await settledAsset(service,id,taskId);
+ assert.equal(after.characters[0].expressionUrl,'/uploads/refreshed-expression.png');
+});
+
 test('single role regeneration updates only its slot and preserves the confirmed workflow',async()=>{
  let received;const {id,service}=assetFixture(async input=>{received=input;return {outputUrl:'/uploads/new-expression.png'};});
  const before=service.get(id);const {taskId}=generateRole(service,id);const after=await settledAsset(service,id,taskId);
@@ -364,4 +385,27 @@ test('restart marks unfinished asset edits failed without changing the workflow 
  const {id,service,store}=assetFixture(async()=>({}));const p=service.get(id);p.tasks.push({id:'unfinished',assetEdit:true,status:'running'});store.put('production',p);
  let submitted=0;const restarted=createProductionService({store,generate:async()=>{submitted++;},compose:async()=>({})}),after=restarted.get(id);
  assert.equal(after.stage,'videos');assert.equal(after.status,'partial');assert.equal(after.tasks.at(-1).status,'failed');assert.equal(submitted,0);assert.equal(after.characters[0].expressionUrl,'/uploads/expression.png');
+});
+
+function sceneAssetFixture(generate){
+ const fixture=assetFixture(generate),p=fixture.service.get(fixture.id);
+ p.scenes=[{id:'scene',name:'寒潭崖',description:'场景描述',imagePrompt:'场景主图提示词',multiviewPrompt:'场景四个视角',imageUrl:'/uploads/scene-main.png',multiviewUrl:'/uploads/scene-multi.png'}];fixture.store.put('production',p);return fixture;
+}
+const generateScene=(service,id,slot='multiviewUrl')=>service.generateAsset(id,{version:service.get(id).version,targetId:'scene',assetSlot:slot,model:'configured-image-model'});
+test('scene multiview regeneration uses main reference and preserves confirmed workflow',async()=>{
+ let received;const {service,id}=sceneAssetFixture(async input=>{received=input;return {outputUrl:'/uploads/new-scene-multi.png'};});
+ const before=service.get(id),{taskId}=generateScene(service,id),after=await settledAsset(service,id,taskId);
+ assert.equal(received.prompt,'场景四个视角');assert.equal(received.model,'configured-image-model');assert.equal(received.settings.ratio,'16:9');assert.deepEqual(received.settings.references,['/uploads/scene-main.png']);
+ assert.equal(after.scenes[0].multiviewUrl,'/uploads/new-scene-multi.png');assert.equal(after.scenes[0].imageUrl,before.scenes[0].imageUrl);assert.deepEqual(after.characters,before.characters);assert.deepEqual(after.shots,before.shots);assert.equal(after.stage,before.stage);assert.equal(after.status,before.status);assert.equal(after.runId,before.runId);assert.equal(after.tasks.at(-1).target.entity,'scene');
+});
+test('scene main generation failure keeps existing images and rejects role slots',async()=>{
+ const {service,id}=sceneAssetFixture(async()=>{throw new Error('场景提供方失败');});
+ assert.throws(()=>generateScene(service,id,'expressionUrl'),/场景图片不存在/);
+ const {taskId}=generateScene(service,id,'imageUrl'),after=await settledAsset(service,id,taskId);
+ assert.equal(after.scenes[0].imageUrl,'/uploads/scene-main.png');assert.equal(after.scenes[0].multiviewUrl,'/uploads/scene-multi.png');assert.equal(after.tasks.at(-1).status,'failed');assert.equal(after.tasks.at(-1).error,'场景提供方失败');
+});
+test('scene generation preserves newer edits and retains result for review',async()=>{
+ let complete;const {service,id}=sceneAssetFixture(()=>new Promise(resolve=>{complete=resolve;}));const {taskId}=generateScene(service,id);
+ command(service,id,{action:'edit',targetId:'scene',changes:{multiviewPrompt:'用户最新场景提示词'}});complete({outputUrl:'/uploads/scene-review.png'});const after=await settledAsset(service,id,taskId);
+ assert.equal(after.scenes[0].multiviewPrompt,'用户最新场景提示词');assert.equal(after.scenes[0].multiviewUrl,'/uploads/scene-multi.png');assert.equal(after.tasks.at(-1).status,'failed');assert.equal(after.tasks.at(-1).outputUrl,'/uploads/scene-review.png');
 });
